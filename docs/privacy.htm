@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Maths Clock - Privacy Policy</title>
+<style>
+:root{color-scheme:light dark;--bg:#fff;--ink:#1c1b22;--mut:#5a566b;--acc:#6d3fe0;--line:#e4e0f0}
+@media(prefers-color-scheme:dark){:root{--bg:#0d0a16;--ink:#ece9f7;--mut:#a9a3c0;--acc:#a98bff;--line:#2a2440}}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:720px;margin:0 auto;padding:28px 18px 60px}
+h1{font-size:28px;margin:0 0 4px}h3{margin:28px 0 6px;color:var(--acc);font-size:18px}
+.pp-date{color:var(--mut);margin-top:0}ul{padding-left:20px}li{margin:4px 0}
+code{background:rgba(127,127,160,.15);padding:1px 5px;border-radius:5px;font-size:.92em}
+</style></head><body><main>
+<h1>Maths Clock &mdash; Privacy Policy</h1>
+<p class="pp-date">Last updated: 24 November 2026</p>
+<p>This policy explains what the <b>Maths Clock</b> app (package <code>com.musa.mathclock</code>, "the app") does with information. It is written from what the app actually does. The app has no accounts, no advertising, no analytics and no third-party SDKs.</p>
+
+<h3>1. Summary</h3>
+<ul>
+<li>The developer does not run any server for this app and does not receive your data.</li>
+<li>Your settings, alarms and cities are stored only on your phone.</li>
+<li>The optional weather feature of the home screen widget contacts two third-party services over the internet (see section 3).</li>
+<li>The app does not ask for location, contacts, camera, microphone or account permissions.</li>
+</ul>
+
+<h3>2. Information stored on your device</h3>
+<p>The app saves the following on your phone so it can work. It is not sent to the developer.</p>
+<ul>
+<li><b>Settings:</b> clock style, theme, colours, fonts, wallpaper choice, language, numeral style, widget options and similar preferences.</li>
+<li><b>Alarms and timer:</b> alarm times, labels, repeat days, chosen sound, snooze length, and the running timer.</li>
+<li><b>World clock:</b> the cities you add.</li>
+<li><b>Weather cache:</b> the last temperature, weather code and place name received, and the city name you typed (if any).</li>
+<li><b>Sounds you add:</b> when you use "Choose from files", the audio file you pick is copied into the Alarms folder of your phone storage (Alarms/Maths Clock) so the system can play it for alarms. The app reads only the file you select.</li>
+</ul>
+<p>This data is kept in the app's private storage and in the app's web view storage. Android's backup feature may include app data in your Google account backup if backup is turned on in your phone settings; that is controlled by Android and your Google account, not by the developer.</p>
+
+<h3>3. Information sent over the internet (weather on the widget)</h3>
+<p>Weather is switched <b>on by default</b> and can be turned off in <i>Settings → Widget → Display options → Weather</i>. When it is on, the app may send requests when the app is opened or the widget refreshes, at most about once every 30 minutes (a failed attempt is retried after about 5 minutes):</p>
+<ul>
+<li><b>If you have not typed a weather city:</b> a request to <code>ipwho.is</code>. Like any internet request, this reveals your device's IP address to that service, which returns an approximate location (latitude, longitude and city name) estimated from the IP address.</li>
+<li><b>If you typed a weather city:</b> the city name is sent to the Open-Meteo geocoding service (<code>geocoding-api.open-meteo.com</code>) to find its coordinates.</li>
+<li><b>Weather request:</b> the coordinates are sent to Open-Meteo (<code>api.open-meteo.com</code>) to get the current temperature and weather code.</li>
+</ul>
+<p>The requests use HTTPS and include a simple app identifier (user-agent "MathsClock") and standard network information such as your IP address. These are independent third-party services; how they handle data is described in their own policies. The app does not use the Android location permission and does not read your precise location. The approximate location found is kept on your phone (about 6 hours for an IP-based location, about 30 days for a typed city) to avoid repeating requests. If weather is turned off, the app makes no internet requests.</p>
+
+<h3>4. Permissions the app uses</h3>
+<ul>
+<li><b>Notifications (POST_NOTIFICATIONS):</b> to show alarm and timer notifications.</li>
+<li><b>Alarms and reminders (SCHEDULE_EXACT_ALARM):</b> to ring alarms and refresh the widget clock at the exact time.</li>
+<li><b>Full-screen notifications (USE_FULL_SCREEN_INTENT):</b> to show the ringing alarm screen over the lock screen.</li>
+<li><b>Run at startup (RECEIVE_BOOT_COMPLETED):</b> to restore alarms and the widget clock after the phone restarts.</li>
+<li><b>Vibrate (VIBRATE):</b> for alarm and timer vibration.</li>
+<li><b>Internet (INTERNET):</b> only for the weather feature described above.</li>
+<li><b>Set wallpaper (SET_WALLPAPER):</b> only when you tap "Apply" to use a clock background as your phone wallpaper.</li>
+</ul>
+<p>The file picker used for "Choose from files" is the Android system picker; the app only receives the file you choose.</p>
+
+<h3>5. Sharing, selling and advertising</h3>
+<p>The developer does not sell or share your information and the app shows no ads. The only data that leaves your phone is the weather-related request in section 3, which goes directly from your phone to the services named there.</p>
+
+<h3>6. Keeping and deleting your data</h3>
+<p>You can change or delete alarms, cities and settings inside the app. <i>Settings → General → Reset</i> restores default settings. Clearing the app's storage or uninstalling the app removes its private data. Audio files that you added are copied to your phone's Alarms folder; you can remove them with "Remove sound" in the app or with a file manager, and they may remain on your phone after uninstalling.</p>
+
+<h3>7. Children</h3>
+<p>The app does not ask for or knowingly collect personal information from anyone, including children. Weather requests are made as described in section 3 regardless of the user's age.</p>
+
+<h3>8. Changes to this policy</h3>
+<p>If the app's data practices change, this policy will be updated and the date above will change. The version inside the app always matches that app version.</p>
+
+<h3>9. Contact</h3>
+<p>Developer: <b>[DEVELOPER NAME - to be added before publishing]</b><br>Email: <b>[CONTACT EMAIL - to be added before publishing]</b></p>
+
+</main></body></html>
