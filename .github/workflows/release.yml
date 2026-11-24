@@ -1,0 +1,162 @@
+name: Release
+
+# Run this by hand: Actions tab > Release > Run workflow.
+#   task = create-key     -> run ONCE. Makes your upload signing key and stores it as repository secrets.
+#   task = build-release  -> builds the signed .aab (for Google Play) and a signed .apk (for testing).
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "What to do"
+        type: choice
+        options:
+          - build-release
+          - create-key
+        default: build-release
+      owner_name:
+        description: "create-key only: name for the certificate (letters and spaces)"
+        default: "Maths Clock"
+      overwrite:
+        description: "create-key only: type YES to replace an existing key"
+        default: "no"
+
+permissions:
+  contents: read
+
+jobs:
+  create-key:
+    if: ${{ inputs.task == 'create-key' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create the upload key and save it as secrets
+        env:
+          GH_TOKEN: ${{ secrets.MC_ADMIN_TOKEN }}
+          OWNER_RAW: ${{ inputs.owner_name }}
+          OVERWRITE: ${{ inputs.overwrite }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::Secret MC_ADMIN_TOKEN is missing. Create it first (see the release guide, step 2)."
+            exit 1
+          fi
+          if gh secret list --repo "$GITHUB_REPOSITORY" | grep -q '^MC_KEYSTORE_B64'; then
+            if [ "$OVERWRITE" != "YES" ]; then
+              echo "::error::A signing key already exists. Replacing it can lock you out of updates. Run again with overwrite = YES only if you really mean it."
+              exit 1
+            fi
+          fi
+          OWNER=$(printf '%s' "$OWNER_RAW" | tr -dc 'A-Za-z0-9 ._-')
+          [ -n "$OWNER" ] || OWNER="Maths Clock"
+          PW=$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c 32)
+          echo "::add-mask::$PW"
+          ALIAS=mathclock-upload
+          KS="$RUNNER_TEMP/upload-keystore.p12"
+          keytool -genkeypair -keystore "$KS" -storetype PKCS12 \
+            -alias "$ALIAS" -keyalg RSA -keysize 4096 -validity 10950 \
+            -storepass "$PW" -keypass "$PW" \
+            -dname "CN=$OWNER, O=$OWNER"
+          base64 -w0 "$KS" | gh secret set MC_KEYSTORE_B64 --repo "$GITHUB_REPOSITORY"
+          printf '%s' "$PW"    | gh secret set MC_KEYSTORE_PASSWORD --repo "$GITHUB_REPOSITORY"
+          printf '%s' "$PW"    | gh secret set MC_KEY_PASSWORD --repo "$GITHUB_REPOSITORY"
+          printf '%s' "$ALIAS" | gh secret set MC_KEY_ALIAS --repo "$GITHUB_REPOSITORY"
+          {
+            echo "### Signing key created"
+            echo "The key and its passwords are stored only as GitHub secrets. They are not in the repository, not in logs, and cannot be read back."
+            echo
+            echo "Public certificate fingerprint (safe to share):"
+            echo '```'
+            keytool -list -v -keystore "$KS" -storepass "$PW" | grep -E "SHA1|SHA256"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          shred -u "$KS" || rm -f "$KS"
+
+  build-release:
+    if: ${{ inputs.task == 'build-release' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unpack the newest MathClock zip
+        run: |
+          ZIP=$(ls -1 MathClock*.zip | LC_ALL=C sort | tail -n 1)
+          echo "Building from $ZIP"
+          rm -rf work && mkdir work
+          unzip -q "$ZIP" -d work
+          echo "PROJECT=$PWD/work/MathClock" >> "$GITHUB_ENV"
+
+      - name: Restore the signing key from secrets
+        env:
+          KS_B64: ${{ secrets.MC_KEYSTORE_B64 }}
+          KS_PW: ${{ secrets.MC_KEYSTORE_PASSWORD }}
+          KEY_AL: ${{ secrets.MC_KEY_ALIAS }}
+          KEY_PW: ${{ secrets.MC_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for v in KS_B64 KS_PW KEY_AL KEY_PW; do
+            if [ -z "${!v:-}" ]; then
+              echo "::error::Signing secrets are missing. Run this workflow with task = create-key first."
+              exit 1
+            fi
+          done
+          printf '%s' "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.p12"
+          echo "MC_KEYSTORE_FILE=$RUNNER_TEMP/release.p12" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.13
+
+      - name: Make sure the Android 16 platform is installed
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" > /dev/null
+
+      - name: Build signed AAB and APK
+        working-directory: ${{ env.PROJECT }}
+        env:
+          MC_KEYSTORE_PASSWORD: ${{ secrets.MC_KEYSTORE_PASSWORD }}
+          MC_KEY_ALIAS: ${{ secrets.MC_KEY_ALIAS }}
+          MC_KEY_PASSWORD: ${{ secrets.MC_KEY_PASSWORD }}
+        run: gradle bundleRelease assembleRelease --no-daemon --stacktrace
+
+      - name: Verify signing, version and permissions
+        working-directory: ${{ env.PROJECT }}
+        run: |
+          set -euo pipefail
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)
+          APK=$(ls app/build/outputs/apk/release/*.apk | head -n 1)
+          AAB=$(ls app/build/outputs/bundle/release/*.aab | head -n 1)
+          echo "APK: $APK"; echo "AAB: $AAB"
+          "$BT/apksigner" verify --verbose --print-certs "$APK" | tee "$RUNNER_TEMP/apk-cert.txt"
+          jarsigner -verify "$AAB" | tee "$RUNNER_TEMP/aab-verify.txt"
+          grep -q "jar verified" "$RUNNER_TEMP/aab-verify.txt"
+          # the release must NOT be signed with the public debug key
+          DBG=$(keytool -list -v -keystore app/debug.keystore -storepass android | grep "SHA-256:" | head -n 1 | sed 's/.*SHA-256: *//')
+          if grep -q "$DBG" "$RUNNER_TEMP/apk-cert.txt"; then
+            echo "::error::The release APK is signed with the debug key."; exit 1
+          fi
+          {
+            echo "### Release check"
+            echo '```'
+            "$BT/aapt2" dump badging "$APK" | grep -E "^package|targetSdkVersion|^sdkVersion|application-label:"
+            echo "--- permissions ---"
+            "$BT/aapt2" dump permissions "$APK" | grep "uses-permission"
+            echo "--- signing ---"
+            grep -E "Signer #1 certificate (DN|SHA-256)" "$RUNNER_TEMP/apk-cert.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove the key from the runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.p12"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MathClock-release
+          path: |
+            ${{ env.PROJECT }}/app/build/outputs/bundle/release/*.aab
+            ${{ env.PROJECT }}/app/build/outputs/apk/release/*.apk

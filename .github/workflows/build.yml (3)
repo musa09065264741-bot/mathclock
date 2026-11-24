@@ -1,0 +1,44 @@
+name: Build debug APK
+
+# Builds an APK for testing on your phone. Not for Google Play (use "Release" for that).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unpack the newest MathClock zip
+        run: |
+          ZIP=$(ls -1 MathClock*.zip | LC_ALL=C sort | tail -n 1)
+          echo "Building from $ZIP"
+          rm -rf work && mkdir work
+          unzip -q "$ZIP" -d work
+          echo "PROJECT=$PWD/work/MathClock" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.13
+
+      - name: Make sure the Android 16 platform is installed
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" > /dev/null
+
+      - name: Build debug APK
+        working-directory: ${{ env.PROJECT }}
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MathClock-apk
+          path: ${{ env.PROJECT }}/app/build/outputs/apk/debug/*.apk
